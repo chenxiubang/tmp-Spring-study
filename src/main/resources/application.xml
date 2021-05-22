@@ -7,10 +7,34 @@
         http://www.springframework.org/schema/context
         http://www.springframework.org/schema/context/spring-context.xsd">
 
+    <!--  控制器的bean ， service set注入-->
+    <bean id="springServlet" class="com.cxb.service.controller.SpringServlet">
+
+        <!--
+        如果注入的不是代理对象，调用servlet的方法不会有事务等
+        （在不配置自动代理的情况下）
+        -->
+        <property name="service" ref="springService"/>
+    </bean>
+
 
     <bean id="springService" class="com.cxb.service.impl.SpringServiceImpl"></bean>
     <bean id="springThrowsAdvice" class="com.cxb.service.advice.SpringThrowsAdvice"></bean>
     <bean id="springBeforeAdvice" class="com.cxb.service.advice.SpringBeforeAdvice"></bean>
+    <bean id="transactionAdvice" class="com.cxb.service.advice.SpringTransactionalAdvice"/>
+
+    <!-- RegexpMethodPointcutAdvisor 最上层也是advisor-->
+    <bean id="advisor" class="org.springframework.aop.support.RegexpMethodPointcutAdvisor">
+        <property name="advice" ref="transactionAdvice"/>
+        <property name="patterns">
+            <list>
+                <value>.*\.add.*</value>
+                <value>.*\.delete.*</value>
+                <value>.*\.update.*</value>
+            </list>
+        </property>
+    </bean>
+
     <!-- 还需要配置proxyFactoryBean -->
     <bean id="proxyFactoryBean" class="org.springframework.aop.framework.ProxyFactoryBean">
         <property name="targetName" value="springService"></property>
@@ -18,11 +42,26 @@
             <list>
                 <value>springThrowsAdvice</value>
                 <value>springBeforeAdvice</value>
+                <!-- advisor 注入-->
+                <value>advisor</value>
             </list>
         </property>
         <!-- 如果 proxyTargetClass 值是true 必然是cglib动态代理-->
         <property name="proxyTargetClass" value="true"/>
         <!--是否暴露代理对象 -->
         <property name="exposeProxy" value="true"/>
+    </bean>
+    <!-- 自动代理 下面一个属性是 advice列表 一个是service列表 减少配置膨胀-->
+    <bean class="org.springframework.aop.framework.autoproxy.BeanNameAutoProxyCreator">
+        <property name="beanNames">
+            <list>
+                <value>springService</value>
+            </list>
+        </property>
+        <property name="interceptorNames">
+            <list>
+                <value>transactionAdvice</value>
+            </list>
+        </property>
     </bean>
 </beans>
